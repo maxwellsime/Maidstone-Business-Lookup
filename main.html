@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Business Lookup : Maidstone</title>
+        <link rel="stylesheet" href="//code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css"> <!--JQueryUI CSS-->
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script> <!--JQuery API-->
+        <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script> <!--JQueryUI API-->
+        <script>
+            $(document).ready(function(){
+                //Get number of pages and create buttons
+                $.get("https://www.cs.kent.ac.uk/people/staff/yh/co539_a2_data/hygiene.php?", {op : "pages"}, function(data){
+                    data = $.parseJSON(data);
+
+                    //create page buttons
+                    for(var i = 1; i <= data.pages; i++)
+                    {
+                        $('#pages').append('<button>' + i + '</button>');
+                    }
+                });
+
+                //Populate table - takes pagenumber as parameter
+                function popTable(pageNo){$.get("https://www.cs.kent.ac.uk/people/staff/yh/co539_a2_data/hygiene.php?", {op: "get", page: pageNo}, function(data){
+                    $('#mainTable>tbody').empty();
+                    $('#tags').val('');
+                    data = $.parseJSON(data);
+                    var tr;
+                    
+                    //append data
+                    $.each(data, function(i, item){
+                        tr = $('<tr/>');
+                        tr.append("<td>" + data[i].business + "</td>");
+                        tr.append("<td>" + data[i].address + "</td>");
+                        tr.append("<td>" + data[i].type + "</td>");
+                        tr.append("<td>" + data[i].rating + "</td>");
+                        tr.append("<td>" + data[i].date + "</td>");
+                        tr.append('<td><button>Get Ratings</button></td>');
+                        $('#mainTable>tbody').append(tr);
+                    })
+                })};
+                
+                //Autocomplete search function
+                var availableTags = [
+                    "KFC",
+                    "McDonalds",
+                    "Greggs",
+                    "Burger King"
+                ];
+                $('#tags').autocomplete({
+                    source: availableTags
+                });
+                
+                //default table data
+                popTable(1);
+
+                /*User-Interactivity*/
+                
+                //Pageination
+                $('#pages').on('click', "button", function(){
+                    pageNo = this;
+                    popTable($(this).text());
+                });
+
+                //Get Ratings
+                $('#mainTable>tbody').on('click', 'td>button', function(){
+                    $('.ratings').css("visibility", "visible");
+                    
+                    /*Have to use substrings because php files have misaligned data, names and addresses are stored under different values
+                    substring number is arbitrary to make it work for the current data but to calculate correct substring lengths would require extra if statements*/
+                    //substring of name
+                    var name = $($(this).parent().parent()).find('td:first-child').text().substring(0, 5);
+                    //substring of location
+                    var loc = $($(this).parent().parent()).find('td:nth-child(2)').text().substring(6, 10);
+                    $.get("https://www.cs.kent.ac.uk/people/staff/yh/co539_a2_data/rating.php?", {businessName: name}, function(data){
+                        //Resets data fields
+                        $('#ratingInfo').empty();
+                        
+                        for(var i = 0; i < data.length; i++){
+                            if(data[i].address.indexOf(loc) > -1){
+                                $('#ratingInfo').append("<li>" + data[i].businessName + "</li><li>" + data[i].avgRating + "/5 Stars</li><li>" + data[i].totalRatings + " Ratings</li>");
+                                return;
+                            }
+                        }
+
+                        //If there is no rating data
+                        $('#ratingInfo').append("<li>No rating data to show.</li>");
+                    });
+                });
+
+                //Close Ratings button
+                $('.ratings').on('click', 'button', function(){
+                    $('.ratings').css("visibility", "hidden");
+                });
+                
+                //Search
+                $('#search').on('click', function(){
+                    var sText = $('#tags').val();
+                    $.get("https://www.cs.kent.ac.uk/people/staff/yh/co539_a2_data/hygiene.php?", {op: "search", business: sText}, function(data){
+                        //Resets table and popup
+                        $('#mainTable>tbody').empty();
+                        $('.ratings').css("visibility", "hidden");
+                        var tr;
+
+                        if(data == "Empty search string"){
+                            tr = $('<tr><td>No business under that name on file.</td><td></td><td></td><td></td><td></td><td></td></tr>');
+                            $('#mainTable>tbody').append(tr);
+                            return;
+                        }
+
+                        data = $.parseJSON(data);
+
+                        //append data
+                        $.each(data, function(i, item){
+                            tr = $('<tr/>');
+                            tr.append("<td>" + data[i].business + "</td>");
+                            tr.append("<td>" + data[i].address + "</td>");
+                            tr.append("<td>" + data[i].type + "</td>");
+                            tr.append("<td>" + data[i].rating + "</td>");
+                            tr.append("<td>" + data[i].date + "</td>");
+                            tr.append('<td><button>Get Ratings</button></td>');
+                            $('#mainTable>tbody').append(tr);
+
+                            //Append availabletags for newly searched data
+                            if (!availableTags.includes(data[i].business)){
+                                availableTags.push(data[i].business);
+                            }
+                        }) 
+                    })
+                });
+            })
+        </script> <!--JQuery-->
+        <style>
+            body{
+                background-color: white;
+                font-family: Helvetica;
+                margin: 0;
+            }#container{
+                margin: 0px auto;
+                padding: 0.1em;
+                width: 95%;
+                background-color: whitesmoke;
+            }#container p, label{
+                padding-left: 1em;
+            }h1{
+                background-color: green;
+                color: white;
+                font-weight: bold;
+                text-align: center;
+                padding: 0.2em;
+                margin: 0;
+            }
+
+            /*Table*/
+            #mainTable{
+                text-align: center;
+                width: 100%;
+                padding: 0;
+                margin: 0px auto;
+            }#mainTable tr{
+                margin: 0;
+                padding: 0;
+            }#mainTable th{
+                color: white;
+                font-weight: bold;
+                background-color: green;
+                padding: 0.3em;
+                margin: 0;
+            }#mainTable td{
+                text-align: left;
+                padding: 0;
+                padding-bottom: 0.1em;
+            }#mainTable tr:nth-child(even){
+                background-color: rgb(224, 224, 224);
+            }#pages{
+                text-align: center;
+            }#pages button{
+                padding: 0.4em;
+                margin-left: 0.1em;
+                margin-right: 0.1em;
+            }
+
+            /*Ratings popup*/
+            .ratings{
+                visibility: hidden;
+                background-color: black;
+                width: 100%;
+                height: 100%;
+            }.popup{
+                opacity: 1;
+                position: absolute;
+                margin: 0 auto;
+                padding: 10px;
+                width: 15%;
+                height: auto;
+                background-color: whitesmoke;
+                left: 0;
+                right: 0;
+                margin-top: 15%;
+                border: 1.5px solid;
+                box-shadow: 0px 0px 10px;
+                text-align: center;
+
+            }#ratingInfo{
+                list-style: none;
+                width: 80%;
+                margin: auto;
+                padding: 5px;
+            }#ratingInfo li{
+                padding-bottom: 8px;
+            }
+
+            /*JQuery UI*/
+            .ui-helper-hidden-accessible{
+                visibility: hidden;
+            }.ui-autocomplete{
+                list-style: none;
+                max-height: 400px;
+                max-width: 30%;
+                width: auto;
+                overflow-y: scroll;
+                overflow-x: hidden;
+                padding: 0;
+                margin: 0;
+            }.ui-autocomplete ul{
+                width: auto;
+            }
+            .ui-autocomplete li:hover{
+                text-decoration: underline;
+                cursor: pointer;
+            }
+        </style> <!--CSS-->
+    </head>
+    <body>
+        <h1>Business Lookup :: Maidstone</h1>
+        <div id="container">
+            <div class="ratings">
+                <div class="popup">
+                    <ul id="ratingInfo"></ul>
+                    <button>Close</button>
+                </div>
+            </div>
+            <p>Table of Maidstone businesses on file:</p>
+            <table id="mainTable">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Address</th>
+                        <th>Type</th>
+                        <th>Rating</th>
+                        <th>Inspection Date</th>
+                    </tr>
+                </thead>
+                <tbody>
+                </tbody>
+            </table>
+            <ul id="pages"></ul>
+            <div class="ui-widget">
+                <label for="tags">Enter search term: </label>
+                <input id="tags">
+                <button id="search">Search</button>
+            </div>
+        </div>
+    </body>
+</html>
